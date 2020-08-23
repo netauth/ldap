@@ -1,6 +1,7 @@
 package ldap
 
 import (
+	"fmt"
 	"context"
 	"errors"
 	"strconv"
@@ -45,6 +46,8 @@ func (s *server) handleSearchEntities(w ldap.ResponseWriter, m *ldap.Message) {
 		f := r.Filter().(message.FilterEqualityMatch)
 		expr, err = entitySearchExprHelper(string(f.AttributeDesc()), "=", string(f.AssertionValue()))
 	default:
+		s.l.Warn("Unsupported entity search filter", "type", fmt.Sprintf("%T", r.Filter()))
+		s.l.Debug("Unsupported search filter", "filter", r.FilterString())
 		err = errors.New("unsupported filter type")
 	}
 	if err != nil {
@@ -144,6 +147,8 @@ func (s *server) handleSearchGroups(w ldap.ResponseWriter, m *ldap.Message) {
 		f := r.Filter().(message.FilterEqualityMatch)
 		expr, err = groupSearchExprHelper(string(f.AttributeDesc()), "=", string(f.AssertionValue()))
 	default:
+		s.l.Warn("Unsupported group search filter", "type", fmt.Sprintf("%T", r.Filter()))
+		s.l.Debug("Unsupported search filter", "filter", r.FilterString())
 		err = errors.New("unsupported filter type")
 	}
 	if err != nil {
