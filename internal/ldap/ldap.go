@@ -28,11 +28,6 @@ func New(l hclog.Logger, nacl naClient) *server {
 		Filter("(objectclass=*)").
 		Label("Search - ROOT DSE")
 
-	routes.Search(x.handleSearchMyCompany).
-		BaseDn("o=My Company, c=US").
-		Scope(ldap.SearchRequestScopeBaseObject).
-		Label("Search - Compagny Root")
-
 	routes.Search(x.handleSearch).Label("Search - Generic")
 
 	x.Handle(routes)

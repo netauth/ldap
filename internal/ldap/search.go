@@ -25,18 +25,6 @@ func (s *server) handleSearchDSE(w ldap.ResponseWriter, m *ldap.Message) {
 	w.Write(res)
 }
 
-func (s *server) handleSearchMyCompany(w ldap.ResponseWriter, m *ldap.Message) {
-	r := m.GetSearchRequest()
-	log.Printf("handleSearchMyCompany - Request BaseDn=%s", r.BaseObject())
-
-	e := ldap.NewSearchResultEntry(string(r.BaseObject()))
-	e.AddAttribute("objectClass", "top", "organizationalUnit")
-	w.Write(e)
-
-	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
-	w.Write(res)
-}
-
 func (s *server) handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetSearchRequest()
 	log.Printf("Request BaseDn=%s", r.BaseObject())
