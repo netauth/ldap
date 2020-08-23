@@ -127,3 +127,99 @@ func entitySearchExprHelper(attr, op, val string) (string, error) {
 
 	return predicate + operator + val, nil
 }
+
+func (s *server) handleSearchGroups(w ldap.ResponseWriter, m *ldap.Message) {
+	ctx := context.Background()
+	s.l.Debug("Search Groups")
+
+	r := m.GetSearchRequest()
+
+	// This switch performs stage one of mapping from an ldap
+	// search expression to a NetAuth search expression.  The
+	// second phase of the mapping happens in another function.
+	var expr string
+	var err error
+	switch r.Filter().(type) {
+	case message.FilterEqualityMatch:
+		f := r.Filter().(message.FilterEqualityMatch)
+		expr, err = groupSearchExprHelper(string(f.AttributeDesc()), "=", string(f.AssertionValue()))
+	default:
+		err = errors.New("unsupported filter type")
+	}
+	if err != nil {
+		// If err is non-nil at this point it must mean that
+		// the above match didn't find a supported filter.
+		res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultUnwillingToPerform)
+		res.SetDiagnosticMessage("Filter type not supported")
+		w.Write(res)
+		return
+	}
+
+	s.l.Debug("Searching groups", "expr", expr)
+
+	members, err := s.c.GroupSearch(ctx, expr)
+	if err != nil {
+		res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultOperationsError)
+		res.SetDiagnosticMessage(err.Error())
+		w.Write(res)
+		return
+	}
+
+	for i := range members {
+		e, err := s.groupSearchResult(ctx, members[i], r.BaseObject(), r.Attributes())
+		if err != nil {
+			res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultOperationsError)
+			res.SetDiagnosticMessage(err.Error())
+			w.Write(res)
+			return
+		}
+		w.Write(e)
+	}
+
+	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
+	w.Write(res)
+}
+
+// groupSearchResult maps a group onto a SearchResultEntry, performing
+// the additional lookup for groups to populate the member attribute.
+// Though not implemented, the attrs list is plumbed down to this
+// level to permit attribute filtering in the future.
+func (s *server) groupSearchResult(ctx context.Context, g *pb.Group, dn message.LDAPDN, attrs message.AttributeSelection) (message.SearchResultEntry, error) {
+	res := ldap.NewSearchResultEntry("cn=" + g.GetName() + "," + string(dn))
+	res.AddAttribute("cn", message.AttributeValue(g.GetName()))
+	res.AddAttribute("gidNumber", message.AttributeValue(strconv.Itoa(int(g.GetNumber()))))
+
+	members, err := s.c.GroupMembers(ctx, g.GetName())
+	if err != nil {
+		return res, err
+	}
+
+	for i := range members {
+		g := "uid=" + members[i].GetID() + ",ou=entities," + strings.Join(s.nc, ",")
+		res.AddAttribute("member", message.AttributeValue(g))
+	}
+
+	return res, nil
+}
+
+// groupSearchExprHelper helps in mapping ldap search expressions to
+// search expressions that NetAuth understands.
+func groupSearchExprHelper(attr, op, val string) (string, error) {
+	var predicate, operator string
+
+	switch attr {
+	case "cn":
+		predicate = "name"
+	default:
+		return "", errors.New("search attribute is unsupported")
+	}
+
+	switch op {
+	case "=":
+		operator = "="
+	default:
+		return "", errors.New("search comparison is unsupported")
+	}
+
+	return predicate + operator + val, nil
+}

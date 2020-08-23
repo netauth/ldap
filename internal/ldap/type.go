@@ -13,6 +13,9 @@ type naClient interface {
 	AuthEntity(context.Context, string, string) error
 	EntitySearch(context.Context, string) ([]*pb.Entity, error)
 	EntityGroups(context.Context, string) ([]*pb.Group, error)
+
+	GroupSearch(context.Context, string) ([]*pb.Group, error)
+	GroupMembers(context.Context, string) ([]*pb.Entity, error)
 }
 
 type server struct {

@@ -94,4 +94,10 @@ func (s *server) SetDomain(domain string) {
 		Scope(ldap.SearchRequestHomeSubtree).
 		Label("Search - Entities")
 
+	groupSearchDN := "ou=groups," + strings.Join(s.nc, ",")
+	s.routes.Search(s.handleSearchGroups).
+		BaseDn(groupSearchDN).
+		Scope(ldap.SearchRequestHomeSubtree).
+		Label("Search - Entities")
+
 }
