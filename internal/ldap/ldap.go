@@ -17,20 +17,18 @@ func New(l hclog.Logger, nacl naClient) *server {
 	x.c = nacl
 	x.Server = ldap.NewServer()
 
-	routes := ldap.NewRouteMux()
-	routes.NotFound(x.handleNotFound)
-	routes.Abandon(x.handleAbandon)
-	routes.Bind(x.handleBind)
+	x.routes = ldap.NewRouteMux()
+	x.routes.NotFound(x.handleNotFound)
+	x.routes.Abandon(x.handleAbandon)
+	x.routes.Bind(x.handleBind)
 
-	routes.Search(x.handleSearchDSE).
+	x.routes.Search(x.handleSearchDSE).
 		BaseDn("").
 		Scope(ldap.SearchRequestScopeBaseObject).
 		Filter("(objectclass=*)").
 		Label("Search - ROOT DSE")
 
-	routes.Search(x.handleSearch).Label("Search - Generic")
-
-	x.Handle(routes)
+	x.Handle(x.routes)
 
 	return x
 }
@@ -88,4 +86,12 @@ func (s *server) SetDomain(domain string) {
 	for i := range s.nc {
 		s.nc[i] = strings.TrimSpace(s.nc[i])
 	}
+
+	// Register routes that are dependent on the namingConvention
+	entitySearchDN := "ou=entities," + strings.Join(s.nc, ",")
+	s.routes.Search(s.handleSearchEntities).
+		BaseDn(entitySearchDN).
+		Scope(ldap.SearchRequestHomeSubtree).
+		Label("Search - Entities")
+
 }

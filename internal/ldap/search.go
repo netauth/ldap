@@ -1,13 +1,17 @@
 package ldap
 
 import (
-	"log"
+	"context"
+	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/ps78674/goldap/message"
 	ldap "github.com/ps78674/ldapserver"
 
 	"github.com/netauth/ldap/internal/buildinfo"
+
+	pb "github.com/netauth/protocol"
 )
 
 func (s *server) handleSearchDSE(w ldap.ResponseWriter, m *ldap.Message) {
@@ -25,37 +29,101 @@ func (s *server) handleSearchDSE(w ldap.ResponseWriter, m *ldap.Message) {
 	w.Write(res)
 }
 
-func (s *server) handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
-	r := m.GetSearchRequest()
-	log.Printf("Request BaseDn=%s", r.BaseObject())
-	log.Printf("Request Filter=%s", r.Filter())
-	log.Printf("Request FilterString=%s", r.FilterString())
-	log.Printf("Request Attributes=%s", r.Attributes())
-	log.Printf("Request TimeLimit=%d", r.TimeLimit().Int())
+func (s *server) handleSearchEntities(w ldap.ResponseWriter, m *ldap.Message) {
+	ctx := context.Background()
+	s.l.Debug("Search Entities")
 
-	// Handle Stop Signal (server stop / client disconnected / Abandoned request....)
-	select {
-	case <-m.Done:
-		log.Print("Leaving handleSearch...")
-		return
+	r := m.GetSearchRequest()
+
+	// This switch performs stage one of mapping from an ldap
+	// search expression to a NetAuth search expression.  The
+	// second phase of the mapping happens in another function.
+	var expr string
+	var err error
+	switch r.Filter().(type) {
+	case message.FilterEqualityMatch:
+		f := r.Filter().(message.FilterEqualityMatch)
+		expr, err = entitySearchExprHelper(string(f.AttributeDesc()), "=", string(f.AssertionValue()))
 	default:
+		err = errors.New("unsupported filter type")
+	}
+	if err != nil {
+		// If err is non-nil at this point it must mean that
+		// the above match didn't find a supported filter.
+		res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultUnwillingToPerform)
+		res.SetDiagnosticMessage("Filter type not supported")
+		w.Write(res)
+		return
 	}
 
-	e := ldap.NewSearchResultEntry("cn=Valere JEANTET, " + string(r.BaseObject()))
-	e.AddAttribute("mail", "valere.jeantet@gmail.com", "mail@vjeantet.fr")
-	e.AddAttribute("company", "SODADI")
-	e.AddAttribute("department", "DSI/SEC")
-	e.AddAttribute("l", "Ferrieres en brie")
-	e.AddAttribute("mobile", "0612324567")
-	e.AddAttribute("telephoneNumber", "0612324567")
-	e.AddAttribute("cn", "Valère JEANTET")
-	w.Write(e)
+	s.l.Debug("Searching entities", "query", expr)
 
-	e = ldap.NewSearchResultEntry("cn=Claire Thomas, " + string(r.BaseObject()))
-	e.AddAttribute("mail", "claire.thomas@gmail.com")
-	e.AddAttribute("cn", "Claire THOMAS")
-	w.Write(e)
+	ents, err := s.c.EntitySearch(ctx, expr)
+	if err != nil {
+		res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultOperationsError)
+		res.SetDiagnosticMessage(err.Error())
+		w.Write(res)
+		return
+	}
+
+	for i := range ents {
+		e, err := s.entitySearchResult(ctx, ents[i], r.BaseObject(), r.Attributes())
+		if err != nil {
+			res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultOperationsError)
+			res.SetDiagnosticMessage(err.Error())
+			w.Write(res)
+			return
+		}
+		w.Write(e)
+	}
+
+	s.l.Debug("Entities", "res", ents)
 
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
+}
+
+// entitySearchResult maps an entity onto a SearchResultEntry,
+// performing the additional lookup for groups to populate the
+// memberOf attribute.  Though not implemented, the attrs list is
+// plumbed down to this level to permit attribute filtering in the
+// future.
+func (s *server) entitySearchResult(ctx context.Context, e *pb.Entity, dn message.LDAPDN, attrs message.AttributeSelection) (message.SearchResultEntry, error) {
+	res := ldap.NewSearchResultEntry("uid=" + e.GetID() + "," + string(dn))
+	res.AddAttribute("uid", message.AttributeValue(e.GetID()))
+	res.AddAttribute("uidNumber", message.AttributeValue(strconv.Itoa(int(e.GetNumber()))))
+
+	grps, err := s.c.EntityGroups(ctx, e.GetID())
+	if err != nil {
+		return res, err
+	}
+
+	for i := range grps {
+		g := "cn=" + grps[i].GetName() + ",ou=groups," + strings.Join(s.nc, ",")
+		res.AddAttribute("memberOf", message.AttributeValue(g))
+	}
+
+	return res, nil
+}
+
+// entitySearchExprHelper helps in mapping ldap search expressions to
+// search expressions that NetAuth understands.
+func entitySearchExprHelper(attr, op, val string) (string, error) {
+	var predicate, operator string
+
+	switch attr {
+	case "uid":
+		predicate = "ID"
+	default:
+		return "", errors.New("search attribute is unsupported")
+	}
+
+	switch op {
+	case "=":
+		operator = "="
+	default:
+		return "", errors.New("search comparison is unsupported")
+	}
+
+	return predicate + operator + val, nil
 }
