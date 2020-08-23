@@ -42,6 +42,9 @@ func main() {
 	}
 
 	ls := ldap.New(appLogger, nacl)
+
+	ls.SetDomain("netauth.org")
+
 	if err := ls.Serve("localhost:10389"); err != nil {
 		appLogger.Error("Error serving", "error", err)
 		return

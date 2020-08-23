@@ -2,17 +2,23 @@ package ldap
 
 import (
 	"log"
+	"strings"
 
+	"github.com/ps78674/goldap/message"
 	ldap "github.com/ps78674/ldapserver"
+
+	"github.com/netauth/ldap/internal/buildinfo"
 )
 
 func (s *server) handleSearchDSE(w ldap.ResponseWriter, m *ldap.Message) {
+	nc := strings.Join(s.nc, ", ")
+
 	e := ldap.NewSearchResultEntry("")
 	e.AddAttribute("vendorName", "NetAuth")
-	e.AddAttribute("vendorVersion", "1.0")
+	e.AddAttribute("vendorVersion", message.AttributeValue(buildinfo.Version))
 	e.AddAttribute("objectClass", "top", "extensibleObject")
 	e.AddAttribute("supportedLDAPVersion", "3")
-	e.AddAttribute("namingContexts", "o=My Company, c=US")
+	e.AddAttribute("namingContexts", message.AttributeValue(nc))
 	w.Write(e)
 
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)

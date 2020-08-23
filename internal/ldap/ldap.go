@@ -3,6 +3,7 @@ package ldap
 import (
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/hashicorp/go-hclog"
@@ -77,5 +78,19 @@ func (s *server) handleAbandon(w ldap.ResponseWriter, m *ldap.Message) {
 	// retreive the request to abandon, and send a abort signal to it
 	if requestToAbandon, ok := m.Client.GetMessageByID(int(req)); ok {
 		requestToAbandon.Abandon()
+	}
+}
+
+func (s *server) SetDomain(domain string) {
+	nc := "dc=netauth,"
+	parts := strings.Split(domain, ".")
+	for i := range parts {
+		nc += "dc=" + parts[i] + ","
+	}
+	nc = strings.TrimSuffix(nc, ",")
+
+	s.nc = strings.Split(nc, ",")
+	for i := range s.nc {
+		s.nc[i] = strings.TrimSpace(s.nc[i])
 	}
 }

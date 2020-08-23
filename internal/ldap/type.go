@@ -16,4 +16,6 @@ type server struct {
 
 	c naClient
 	l hclog.Logger
+
+	nc []string
 }

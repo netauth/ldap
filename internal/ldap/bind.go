@@ -22,7 +22,16 @@ func (s *server) handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 
 	s.l.Debug("Bind from dn", "dn", r.Name())
 
-	if err := s.c.AuthEntity(ctx, entityIDFromDN(r.Name()), string(r.AuthenticationSimple())); err != nil {
+	entityID, err := s.entityIDFromDN(r.Name())
+	if err != nil {
+		res := ldap.NewBindResponse(ldap.LDAPResultInvalidDNSyntax)
+		res.SetDiagnosticMessage(err.Error())
+		s.l.Warn("Request with invalid DN", "dn", r.Name())
+		w.Write(res)
+		return
+	}
+
+	if err := s.c.AuthEntity(ctx, entityID, string(r.AuthenticationSimple())); err != nil {
 		res := ldap.NewBindResponse(ldap.LDAPResultInvalidCredentials)
 		res.SetDiagnosticMessage("invalid credentials")
 		w.Write(res)
