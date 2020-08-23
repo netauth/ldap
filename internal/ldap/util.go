@@ -20,8 +20,8 @@ func (s *server) entityIDFromDN(dn message.LDAPDN) (string, error) {
 		return "", errors.New("entity DN must start with uid=")
 	}
 
-	if parts[1] != "cn=entities" {
-		return "", errors.New("entity DN is underneath cn=entities")
+	if parts[1] != "ou=entities" {
+		return "", errors.New("entity DN is underneath ou=entities")
 	}
 
 	for i, p := range parts[2:] {
