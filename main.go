@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/netauth/ldap/internal/ldap"
@@ -23,7 +25,16 @@ func main() {
 		appLogger = hclog.NewNullLogger()
 	}
 
-	log.SetOutput(appLogger.Named("ldap.protocol").StandardWriter(&hclog.StandardLoggerOptions{ForceLevel: hclog.Trace}))
+	// Take over the built in logger and set it up for Trace level
+	// priority.  The only thing that logs at this priority are
+	// protocol messages from the underlying ldap server mux.
+	log.SetOutput(appLogger.Named("ldap.protocol").
+		StandardWriter(
+			&hclog.StandardLoggerOptions{
+				ForceLevel: hclog.Trace,
+			},
+		),
+	)
 	log.SetPrefix("")
 	log.SetFlags(0)
 
@@ -43,11 +54,18 @@ func main() {
 
 	ls := ldap.New(appLogger, nacl)
 
-	ls.SetDomain("netauth.org")
+	ls.SetDomain(viper.GetString("ldap.domain"))
 
-	if err := ls.Serve("localhost:10389"); err != nil {
+	if err := ls.Serve(viper.GetString("ldap.bind")); err != nil {
 		appLogger.Error("Error serving", "error", err)
 		return
 	}
+
+	// Sit here and wait for a signal to shutdown.
+	ch := make(chan os.Signal, 5)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	<-ch
+	ls.Stop()
+
 	appLogger.Info("Goodbye!")
 }

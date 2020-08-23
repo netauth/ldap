@@ -1,10 +1,7 @@
 package ldap
 
 import (
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 
 	"github.com/hashicorp/go-hclog"
 	ldap "github.com/ps78674/ldapserver"
@@ -36,18 +33,14 @@ func New(l hclog.Logger, nacl naClient) *server {
 // Serve serves a plaintext DSA on the provided bind string.
 func (s *server) Serve(bind string) error {
 	chErr := make(chan error)
-	defer close(chErr)
 	go s.ListenAndServe(bind, chErr)
 	if err := <-chErr; err != nil {
 		s.l.Error("Error from main server thread", "error", err)
 		return err
 	}
+	return nil
+}
 
-	ch := make(chan os.Signal, 5)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	<-ch
-	close(ch)
-	s.Stop()
 	return nil
 }
 
