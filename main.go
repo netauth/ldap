@@ -13,6 +13,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+func init() {
+	viper.SetDefault("ldap.bind", "localhost:389")
+	viper.SetDefault("ldap.tls", false)
+	viper.SetDefault("ldap.key", "/var/lib/netauth/keys/ldap.key")
+	viper.SetDefault("ldap.cert", "/var/lib/netauth/keys/ldap.cert")
+}
+
 func main() {
 	var appLogger hclog.Logger
 
