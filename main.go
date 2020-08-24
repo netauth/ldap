@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/hashicorp/go-hclog"
@@ -56,7 +57,29 @@ func main() {
 
 	ls.SetDomain(viper.GetString("ldap.domain"))
 
-	if err := ls.Serve(viper.GetString("ldap.bind")); err != nil {
+	if !viper.GetBool("ldap.tls") {
+		if !strings.HasPrefix(viper.GetString("ldap.bind"), "localhost") {
+			appLogger.Warn("===================================================================")
+			appLogger.Warn("  WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING  ")
+			appLogger.Warn("===================================================================")
+			appLogger.Warn("")
+			appLogger.Warn("You are launching this server in plaintext mode!  This is allowable")
+			appLogger.Warn("advisable when bound to localhost, and the bind configuration has")
+			appLogger.Warn("been detected as not being bound to localhost.")
+			appLogger.Warn("")
+			appLogger.Warn("===================================================================")
+			appLogger.Warn("  WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING  ")
+			appLogger.Warn("===================================================================")
+		}
+		err = ls.Serve(viper.GetString("ldap.bind"))
+	} else {
+		err = ls.ServeTLS(
+			viper.GetString("ldap.bind"),
+			viper.GetString("ldap.key"),
+			viper.GetString("ldap.cert"),
+		)
+	}
+	if err != nil {
 		appLogger.Error("Error serving", "error", err)
 		return
 	}

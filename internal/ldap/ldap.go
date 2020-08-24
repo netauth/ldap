@@ -41,6 +41,16 @@ func (s *server) Serve(bind string) error {
 	return nil
 }
 
+// ServeTLS serves a TLS encrypted DSA on the provided bindstring
+// using a key/cert pair located at the paths provided.  Key and
+// certificate should be PEM encoded.
+func (s *server) ServeTLS(bind, keypath, certpath string) error {
+	chErr := make(chan error)
+	go s.ListenAndServeTLS(bind, certpath, keypath, chErr)
+	if err := <-chErr; err != nil {
+		s.l.Error("Error from main server thread", "error", err)
+		return err
+	}
 	return nil
 }
 
