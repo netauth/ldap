@@ -123,7 +123,8 @@ func entitySearchExprHelper(attr, op, val string) (string, error) {
 
 	switch op {
 	case "=":
-		operator = "="
+		operator = ":"
+		val = strconv.Quote(val)
 	default:
 		return "", errors.New("search comparison is unsupported")
 	}
@@ -162,7 +163,7 @@ func (s *server) handleSearchGroups(w ldap.ResponseWriter, m *ldap.Message) {
 
 	s.l.Debug("Searching groups", "expr", expr)
 
-	members, err := s.c.GroupSearch(ctx, expr)
+	groups, err := s.c.GroupSearch(ctx, expr)
 	if err != nil {
 		res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultOperationsError)
 		res.SetDiagnosticMessage(err.Error())
@@ -170,8 +171,9 @@ func (s *server) handleSearchGroups(w ldap.ResponseWriter, m *ldap.Message) {
 		return
 	}
 
-	for i := range members {
-		e, err := s.groupSearchResult(ctx, members[i], r.BaseObject(), r.Attributes())
+	for i := range groups {
+		s.l.Debug("Found group", "group", groups[i].GetName())
+		e, err := s.groupSearchResult(ctx, groups[i], r.BaseObject(), r.Attributes())
 		if err != nil {
 			res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultOperationsError)
 			res.SetDiagnosticMessage(err.Error())
@@ -214,14 +216,15 @@ func groupSearchExprHelper(attr, op, val string) (string, error) {
 
 	switch attr {
 	case "cn":
-		predicate = "name"
+		predicate = "Name"
 	default:
 		return "", errors.New("search attribute is unsupported")
 	}
 
 	switch op {
 	case "=":
-		operator = "="
+		operator = ":"
+		val = strconv.Quote(val)
 	default:
 		return "", errors.New("search comparison is unsupported")
 	}
