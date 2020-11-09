@@ -85,10 +85,12 @@ func (s *server) entitySearchResult(ctx context.Context, e *pb.Entity, dn messag
 		return res, err
 	}
 
+	memberOf := []message.AttributeValue{}
 	for i := range grps {
 		g := "cn=" + grps[i].GetName() + ",ou=groups," + strings.Join(s.nc, ",")
-		res.AddAttribute("memberOf", message.AttributeValue(g))
+		memberOf = append(memberOf, message.AttributeValue(g))
 	}
+	res.AddAttribute("memberOf", memberOf...)
 
 	return res, nil
 }
@@ -149,10 +151,12 @@ func (s *server) groupSearchResult(ctx context.Context, g *pb.Group, dn message.
 		return res, err
 	}
 
+	memberList := []message.AttributeValue{}
 	for i := range members {
 		g := "uid=" + members[i].GetID() + ",ou=entities," + strings.Join(s.nc, ",")
-		res.AddAttribute("member", message.AttributeValue(g))
+		memberList = append(memberList, message.AttributeValue(g))
 	}
+	res.AddAttribute("member", memberList...)
 
 	return res, nil
 }
