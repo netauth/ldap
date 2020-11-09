@@ -2,8 +2,6 @@ package ldap
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -35,21 +33,7 @@ func (s *server) handleSearchEntities(w ldap.ResponseWriter, m *ldap.Message) {
 	s.l.Debug("Search Entities")
 
 	r := m.GetSearchRequest()
-
-	// This switch performs stage one of mapping from an ldap
-	// search expression to a NetAuth search expression.  The
-	// second phase of the mapping happens in another function.
-	var expr string
-	var err error
-	switch r.Filter().(type) {
-	case message.FilterEqualityMatch:
-		f := r.Filter().(message.FilterEqualityMatch)
-		expr, err = entitySearchExprHelper(string(f.AttributeDesc()), "=", string(f.AssertionValue()))
-	default:
-		s.l.Warn("Unsupported entity search filter", "type", fmt.Sprintf("%T", r.Filter()))
-		s.l.Debug("Unsupported search filter", "filter", r.FilterString())
-		err = errors.New("unsupported filter type")
-	}
+	expr, err := s.buildBleveQuery(r.Filter())
 	if err != nil {
 		// If err is non-nil at this point it must mean that
 		// the above match didn't find a supported filter.
@@ -109,49 +93,13 @@ func (s *server) entitySearchResult(ctx context.Context, e *pb.Entity, dn messag
 	return res, nil
 }
 
-// entitySearchExprHelper helps in mapping ldap search expressions to
-// search expressions that NetAuth understands.
-func entitySearchExprHelper(attr, op, val string) (string, error) {
-	var predicate, operator string
-
-	switch attr {
-	case "uid":
-		predicate = "ID"
-	default:
-		return "", errors.New("search attribute is unsupported")
-	}
-
-	switch op {
-	case "=":
-		operator = ":"
-		val = strconv.Quote(val)
-	default:
-		return "", errors.New("search comparison is unsupported")
-	}
-
-	return predicate + operator + val, nil
-}
-
 func (s *server) handleSearchGroups(w ldap.ResponseWriter, m *ldap.Message) {
 	ctx := context.Background()
 	s.l.Debug("Search Groups")
 
 	r := m.GetSearchRequest()
 
-	// This switch performs stage one of mapping from an ldap
-	// search expression to a NetAuth search expression.  The
-	// second phase of the mapping happens in another function.
-	var expr string
-	var err error
-	switch r.Filter().(type) {
-	case message.FilterEqualityMatch:
-		f := r.Filter().(message.FilterEqualityMatch)
-		expr, err = groupSearchExprHelper(string(f.AttributeDesc()), "=", string(f.AssertionValue()))
-	default:
-		s.l.Warn("Unsupported group search filter", "type", fmt.Sprintf("%T", r.Filter()))
-		s.l.Debug("Unsupported search filter", "filter", r.FilterString())
-		err = errors.New("unsupported filter type")
-	}
+	expr, err := s.buildBleveQuery(r.Filter())
 	if err != nil {
 		// If err is non-nil at this point it must mean that
 		// the above match didn't find a supported filter.
@@ -207,27 +155,4 @@ func (s *server) groupSearchResult(ctx context.Context, g *pb.Group, dn message.
 	}
 
 	return res, nil
-}
-
-// groupSearchExprHelper helps in mapping ldap search expressions to
-// search expressions that NetAuth understands.
-func groupSearchExprHelper(attr, op, val string) (string, error) {
-	var predicate, operator string
-
-	switch attr {
-	case "cn":
-		predicate = "Name"
-	default:
-		return "", errors.New("search attribute is unsupported")
-	}
-
-	switch op {
-	case "=":
-		operator = ":"
-		val = strconv.Quote(val)
-	default:
-		return "", errors.New("search comparison is unsupported")
-	}
-
-	return predicate + operator + val, nil
 }
