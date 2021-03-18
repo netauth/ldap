@@ -1,6 +1,7 @@
 before:
   hooks:
     - go mod vendor
+    - scripts/prepare.sh
 builds:
   - goos:
       - darwin
