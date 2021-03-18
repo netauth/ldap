@@ -31,5 +31,5 @@ changelog:
     - '^test:'
 release:
   github:
-    owner: NetAuth
-    name: NetAuth
+    owner: netauth
+    name: ldap
