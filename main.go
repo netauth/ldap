@@ -57,6 +57,7 @@ func main() {
 
 	nacl, err := netauth.NewWithLog(appLogger.Named("netauth"))
 	if err != nil {
+		appLogger.Error("Error initializing client", "error", err)
 		os.Exit(2)
 	}
 
