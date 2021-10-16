@@ -37,6 +37,7 @@ func (s *server) handleSearchEntities(w ldap.ResponseWriter, m *ldap.Message) {
 	if err != nil {
 		// If err is non-nil at this point it must mean that
 		// the above match didn't find a supported filter.
+		s.l.Warn("Unsupported Search Filter, this is a bug, please file a report", "filter", r.Filter())
 		res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultUnwillingToPerform)
 		res.SetDiagnosticMessage("Filter type not supported")
 		w.Write(res)
@@ -105,6 +106,7 @@ func (s *server) handleSearchGroups(w ldap.ResponseWriter, m *ldap.Message) {
 	if err != nil {
 		// If err is non-nil at this point it must mean that
 		// the above match didn't find a supported filter.
+		s.l.Warn("Unsupported Search Filter, this is a bug, please file a report", "filter", r.Filter())
 		res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultUnwillingToPerform)
 		res.SetDiagnosticMessage("Filter type not supported")
 		w.Write(res)
