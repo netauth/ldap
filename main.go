@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/netauth/ldap/internal/ldap"
 	"github.com/netauth/netauth/pkg/netauth"
 	"github.com/spf13/viper"
+	log "github.com/sirupsen/logrus"
 )
 
 func init() {
@@ -36,6 +36,9 @@ func main() {
 	// Take over the built in logger and set it up for Trace level
 	// priority.  The only thing that logs at this priority are
 	// protocol messages from the underlying ldap server mux.
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp: true,
+	})
 	log.SetOutput(appLogger.Named("ldap.protocol").
 		StandardWriter(
 			&hclog.StandardLoggerOptions{
@@ -43,8 +46,6 @@ func main() {
 			},
 		),
 	)
-	log.SetPrefix("")
-	log.SetFlags(0)
 
 	viper.SetConfigName("config")
 	viper.AddConfigPath("/etc/netauth/")
