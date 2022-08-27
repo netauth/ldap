@@ -3,14 +3,13 @@ package ldap
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/ps78674/goldap/message"
 )
 
 func (s *server) buildBleveQuery(f message.Filter) (string, error) {
-	s.l.Trace("Building search expression", "filter", fmt.Sprintf("%#v", f))
+	s.l.Trace("Building search expression", "type", fmt.Sprintf("%T", f), "filter", fmt.Sprintf("%#v", f))
 	var err error
 	var etmp string
 	var expr []string
@@ -26,6 +25,9 @@ func (s *server) buildBleveQuery(f message.Filter) (string, error) {
 			}
 			expr = append(expr, s)
 		}
+	case message.FilterPresent:
+		etmp, err = mapToBleveStringQuery(string(f), "=", "*")
+		expr = append(expr, etmp)
 	default:
 		s.l.Warn("Unsupported search filter", "filter", fmt.Sprintf("%#v", f))
 		err = errors.New("unsupported search filter")
@@ -48,7 +50,6 @@ func mapToBleveStringQuery(attr, op, val string) (string, error) {
 	switch op {
 	case "=":
 		operator = ":"
-		val = strconv.Quote(val)
 	default:
 		return "", errors.New("search comparison is unsupported")
 	}
