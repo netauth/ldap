@@ -3,15 +3,15 @@ package ldap
 import (
 	"strings"
 
-	"github.com/hashicorp/go-hclog"
 	ldap "github.com/ps78674/ldapserver"
 )
 
 // New returns a new ldap server instance
-func New(l hclog.Logger, nacl naClient) *server {
+func New(opts ...Option) *server {
 	x := new(server)
-	x.l = l.Named("ldap")
-	x.c = nacl
+	for _, o := range opts {
+		o(x)
+	}
 	x.Server = ldap.NewServer()
 
 	x.routes = ldap.NewRouteMux()

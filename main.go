@@ -9,8 +9,8 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/netauth/ldap/internal/ldap"
 	"github.com/netauth/netauth/pkg/netauth"
-	"github.com/spf13/viper"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -62,7 +62,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	ls := ldap.New(appLogger, nacl)
+	ls := ldap.New(ldap.WithLogger(appLogger), ldap.WithNetAuth(nacl))
 
 	ls.SetDomain(viper.GetString("ldap.domain"))
 
