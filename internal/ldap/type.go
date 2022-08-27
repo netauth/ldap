@@ -27,4 +27,6 @@ type server struct {
 	l hclog.Logger
 
 	nc []string
+
+	allowAnon bool
 }

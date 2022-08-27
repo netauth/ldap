@@ -12,3 +12,8 @@ func WithLogger(l hclog.Logger) Option { return func(s *server) { s.l = l.Named(
 
 // WithNetAuth sets the NetAuth client for the server.
 func WithNetAuth(n naClient) Option { return func(s *server) { s.c = n } }
+
+// WithAnonBind enables anonymous bind support which is necessary in
+// some cases that the client wishes to do an initial anonymous bind,
+// followed by an immediate rebind as a real entity.
+func WithAnonBind(a bool) Option { return func(s *server) { s.allowAnon = a } }

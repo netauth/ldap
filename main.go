@@ -18,6 +18,7 @@ func init() {
 	viper.SetDefault("ldap.tls", false)
 	viper.SetDefault("ldap.key", "/var/lib/netauth/keys/ldap.key")
 	viper.SetDefault("ldap.cert", "/var/lib/netauth/keys/ldap.cert")
+	viper.SetDefault("ldap.allow_anon", false)
 }
 
 func main() {
@@ -51,6 +52,9 @@ func main() {
 	viper.AddConfigPath("/etc/netauth/")
 	viper.AddConfigPath("$HOME/.netauth/")
 	viper.AddConfigPath(".")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.SetEnvPrefix("NETAUTH")
+	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
 		appLogger.Error("Error loading config", "error", err)
 		os.Exit(5)
@@ -62,7 +66,11 @@ func main() {
 		os.Exit(2)
 	}
 
-	ls := ldap.New(ldap.WithLogger(appLogger), ldap.WithNetAuth(nacl))
+	ls := ldap.New(
+		ldap.WithLogger(appLogger),
+		ldap.WithNetAuth(nacl),
+		ldap.WithAnonBind(viper.GetBool("ldap.allow_anon")),
+	)
 
 	ls.SetDomain(viper.GetString("ldap.domain"))
 

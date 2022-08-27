@@ -22,6 +22,11 @@ func (s *server) handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 
 	s.l.Debug("Bind from dn", "dn", r.Name())
 
+	if s.allowAnon && r.Name() == "" {
+		res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
+		w.Write(res)
+	}
+
 	entityID, err := s.entityIDFromDN(r.Name())
 	if err != nil {
 		res := ldap.NewBindResponse(ldap.LDAPResultInvalidDNSyntax)
